@@ -35,22 +35,12 @@ public:
         if(m_image_exist) glDeleteTextures(1, &m_image);
     }
 
-    void render(const Shader& shader) const
-    {
-        if(!m_image_exist) return;
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_image);
-        shader.setUniform1i("image", 0);
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-        glBindVertexArray(0);
-    }
-
     bool update(const std::string& filepath)
     {
         if(m_image_exist)
         {
             glDeleteTextures(1, &m_image);
+            glDeleteTextures(2, m_image_buffer);
             m_image_exist = false;
         }
         stbi_set_flip_vertically_on_load(true);
@@ -83,13 +73,33 @@ public:
             imgFormat = GL_RGB;
             break;
         }
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_imageW, m_imageH, 0, imgFormat, GL_UNSIGNED_BYTE, img);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_imageW, m_imageH, 0, imgFormat, GL_UNSIGNED_BYTE, img);
         glGenerateMipmap(GL_TEXTURE_2D);
         stbi_image_free(img);
         glBindTexture(GL_TEXTURE_2D, 0);
+
+        glGenTextures(2, m_image_buffer);
+        for(int i = 0; i < 2; i++)
+        {
+            glBindTexture(GL_TEXTURE_2D, m_image_buffer[i]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexStorage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_imageW, m_imageH);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+
         m_image_exist = true;
-        m_image_path = filepath;
+        m_name = filepath.substr(filepath.find_last_of("/\\") + 1);
         return m_image_exist;
+    }
+
+    void draw() const
+    {
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        glBindVertexArray(0);
     }
 
     std::string get_error() const
@@ -99,13 +109,19 @@ public:
 
     std::string get_name() const
     {
-        return m_image_path;
+        return m_name;
     }
 
-    float get_ratio() const
+    int width() const
     {
-        if(!m_imageH) return 0.0f;
-        return (float)m_imageW / (float)m_imageH;
+        if(!m_image_exist) return 0;
+        return m_imageW;
+    }
+
+    int height() const
+    {
+        if(!m_image_exist) return 0;
+        return m_imageH;
     }
 
     bool exists() const
@@ -113,11 +129,26 @@ public:
         return m_image_exist;
     }
 
+    GLuint source() const
+    {
+        return m_image;
+    }
+
+    GLuint nextBuffer(bool reset = false) const
+    {
+        static int idx = 0;
+        if(reset) idx = 0;
+        GLuint buffer = m_image_buffer[idx];
+        idx = !idx;
+        return buffer;
+    }
+
 private:
     int m_imageW, m_imageH, m_imageC;
     GLuint m_image;
+    GLuint m_image_buffer[2];
     bool m_image_exist = false;
     GLuint VAO;
     std::string error_message = "";
-    std::string m_image_path = "";
+    std::string m_name = "";
 };

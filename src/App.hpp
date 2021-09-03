@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <algorithm>
 #include <stdexcept>
 
 #define MAX_LOG_MESSAGE 100
@@ -52,13 +53,67 @@ public:
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
         ImGui_ImplOpenGL3_Init("#version 130");
 
-        m_shader = std::make_shared<Shader>();
         m_image = std::make_shared<Image>();
+
+        std::string defaultVertSource =
+        #include "render.vert.glsl"
+        ;
+        std::string defaultFragSource =
+        #include "render.frag.glsl"
+        ;
+        const char* vertSource = defaultVertSource.c_str();
+        const char* fragSource = defaultFragSource.c_str();
+        GLuint vertID, fragID;
+        vertID = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vertID, 1, &vertSource, nullptr);
+        glCompileShader(vertID);
+        GLint compileSuccess;
+        glGetShaderiv(vertID, GL_COMPILE_STATUS, &compileSuccess);
+        if(!compileSuccess)
+        {
+            GLint infoLen;
+            glGetShaderiv(vertID, GL_INFO_LOG_LENGTH, &infoLen);
+            std::vector<GLchar> infoLog(infoLen+1);
+            glGetShaderInfoLog(vertID, infoLen, nullptr, &infoLog[0]);
+            std::string content = std::string(&infoLog[0]);
+            throw std::runtime_error("vertex shader failed to compile:\n"+content);
+        }
+        fragID = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fragID, 1, &fragSource, nullptr);
+        glCompileShader(fragID);
+        glGetShaderiv(fragID, GL_COMPILE_STATUS, &compileSuccess);
+        if(!compileSuccess)
+        {
+            GLint infoLen;
+            glGetShaderiv(fragID, GL_INFO_LOG_LENGTH, &infoLen);
+            std::vector<GLchar> infoLog(infoLen+1);
+            glGetShaderInfoLog(fragID, infoLen, nullptr, &infoLog[0]);
+            std::string content = std::string(&infoLog[0]);
+            throw std::runtime_error("fragment shader failed to compile:\n"+content);
+        }
+        m_render_shader = glCreateProgram();
+        glAttachShader(m_render_shader, vertID);
+        glAttachShader(m_render_shader, fragID);
+        glLinkProgram(m_render_shader);
+        GLint success;
+        glGetProgramiv(m_render_shader, GL_LINK_STATUS, &success);
+        if(!success)
+        {
+            GLint infoLen;
+            glGetProgramiv(m_render_shader, GL_INFO_LOG_LENGTH, &infoLen);
+            std::vector<GLchar> infoLog(infoLen+1);
+            glGetProgramInfoLog(m_render_shader, infoLen, nullptr, &infoLog[0]);
+            throw std::runtime_error("program failed to link: " + std::string(&infoLog[0]));
+        }
+        glDeleteShader(vertID);
+        glDeleteShader(fragID);
+
         add_log_message("UI", "program initialized");
     }
 
     ~Application()
     {
+        glDeleteProgram(m_render_shader);
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
@@ -76,12 +131,41 @@ public:
             glClearColor(winBackground[0], winBackground[1], winBackground[2], winBackground[3]);
             glClear(GL_COLOR_BUFFER_BIT);
 
-            float ratio = (float)winW / (float)winH;
-            m_shader->bind();
-            m_shader->setUniform1f("ratio_img", m_image->get_ratio());
-            m_shader->setUniform1f("ratio_win", ratio);
-            m_image->render(*m_shader);
-            m_shader->unbind();
+            if(m_image->exists())
+            {
+                float ratioWin = winH ? (float)winW / (float)winH : 0.0f;
+                int imgW = m_image->width();
+                int imgH = m_image->height();
+                float ratioImg = imgH ? (float)imgW / (float)imgH : 0.0f;
+                GLuint lastImgOutput = m_image->source();
+                for(size_t i = 0; i < m_shader_pipeline.size(); i++)
+                {
+                    auto& shader = m_shader_pipeline[i];
+                    GLuint imgInput = lastImgOutput;
+                    GLuint imgOutput = m_image->nextBuffer();
+                    lastImgOutput = imgOutput;
+                    shader->bind();
+                    shader->setUniform1i("imageIn", 0);
+                    shader->setUniform1i("imageOut", 1);
+                    glBindImageTexture(0, imgInput, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+                    glBindImageTexture(1, imgOutput, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+                    glDispatchCompute((GLuint)imgW, (GLuint)imgH, 1);
+                    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                    glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+                    glBindImageTexture(1, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+                    shader->unbind();
+                }
+                glUseProgram(m_render_shader);
+                glUniform1f(glGetUniformLocation(m_render_shader, "ratio_img"), ratioImg);
+                glUniform1f(glGetUniformLocation(m_render_shader, "ratio_win"), ratioWin);
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, lastImgOutput);
+                glUniform1i(glGetUniformLocation(m_render_shader, "image"), 0);
+                m_image->draw();
+                glUseProgram(0);
+                glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+            }
+            
 
             if(displayUI)
             {
@@ -112,21 +196,55 @@ public:
                                 add_log_message("Image", m_image->get_error());
                             else add_log_message("UI", "image file updated");
                         }
-                        auto shaderName = m_shader->get_name();
-                        ImGui::Text("Shader file: %s", shaderName.length() > 0 ? shaderName.c_str() : "default");
-                        if(ImGui::Button("Select Shader"))
+                        ImGui::Separator();
+                        ImGui::Text("Shader Pipeline Layers");
+                        auto iter = m_shader_pipeline.begin();
+                        int i = 0;
+                        while(iter != m_shader_pipeline.end())
                         {
-                            if(!m_shader->update(tools_select_file("Shader", "*.glsl")))
-                                add_log_message("Shader", m_shader->get_error());
-                            else add_log_message("UI", "shader file updated");
+                            auto& shader = *iter;
+                            ImGui::Text("[%d] %s", i, shader->get_name().c_str());
+                            if(ImGui::Button("Del"))
+                            {
+                                iter = m_shader_pipeline.erase(iter);
+                                continue;
+                            }
+                            ImGui::SameLine();
+                            if(i > 0)
+                            {
+                                if(ImGui::Button("↑"))
+                                    std::iter_swap(iter, iter-1);
+                                ImGui::SameLine();
+                            }
+                            if(i < (int)m_shader_pipeline.size() - 1)
+                            {
+                                if(ImGui::Button("↓"))
+                                    std::iter_swap(iter, iter+1);
+                            }
+                            i++;
+                            iter++;
                         }
+                        if(ImGui::Button("Add"))
+                        {
+                            std::shared_ptr<Shader> newshader = std::make_shared<Shader>(
+                                tools_select_file("Shader", "*.glsl")
+                            );
+                            if(!newshader->initialized())
+                                add_log_message("Shader", newshader->get_error());
+                            else
+                            {
+                                m_shader_pipeline.push_back(newshader);
+                                add_log_message("UI", newshader->get_name() + " added");
+                            }
+                        }
+                        ImGui::Text("Final Output");
                         ImGui::EndTabItem();
                     }
                     if(ImGui::BeginTabItem("Log"))
                     {
                         for(auto& message : m_log)
                         {
-                            ImGui::Text(message.c_str());
+                            ImGui::TextWrapped("%s", message.c_str());
                         }
                         ImGui::EndTabItem();
                     }
@@ -170,9 +288,12 @@ private:
                     glfwSetWindowShouldClose(window, GLFW_TRUE);
                     break;
                 case GLFW_KEY_R:
-                    if(!user->m_shader->update())
-                        user->add_log_message("Shader", user->m_shader->get_error());
-                    else user->add_log_message("UI", "shader file refreshed");
+                    for(auto& shader : user->m_shader_pipeline)
+                    {
+                        if(!shader->update())
+                            user->add_log_message("Shader", shader->get_error());
+                    }
+                    user->add_log_message("Shader", "shader pipeline refreshed");
                     break;
                 case GLFW_KEY_F12:
                     user->displayUI = !user->displayUI;
@@ -199,6 +320,7 @@ public:
 private:
     GLFWwindow* m_window;
     std::vector<std::string> m_log;
-    std::shared_ptr<Shader> m_shader;
+    GLuint m_render_shader;
+    std::vector<std::shared_ptr<Shader>> m_shader_pipeline;
     std::shared_ptr<Image> m_image;
 };
