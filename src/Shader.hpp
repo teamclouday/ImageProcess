@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <iostream>
 
 struct ShaderComponent
 {
@@ -78,7 +79,9 @@ public:
         }
         std::ostringstream ss;
         ss << file.rdbuf();
-        const char* fragShader = ss.str().c_str();
+        std::string fragShaderSource = ss.str();
+        const char* fragShader = fragShaderSource.c_str();
+        std::cout << fragShaderSource << std::endl;
         if(m_frag_shader.compiled)
         {
             glDeleteShader(m_frag_shader.ID);
