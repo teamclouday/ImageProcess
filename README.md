@@ -30,3 +30,9 @@ cmake --build . --config Release
 
 * `R` to reload shader file  
 * `F12` to toggle UI display  
+
+------
+
+### Demo
+
+<img src="assets/demo.png" width="600" alt="demo">
