@@ -13,6 +13,9 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <ctime>
+#include <chrono>
+#include <iomanip>
 #include <algorithm>
 #include <stdexcept>
 
@@ -190,7 +193,7 @@ public:
                         {
                             if(!m_image->update(tools_select_file("Image", "*.*")))
                                 add_log_message("Image", m_image->get_error());
-                            else add_log_message("UI", "image file updated");
+                            else add_log_message("UI", "new image " + m_image->get_name());
                         }
                         ImGui::Separator();
                         ImGui::Text("Shader Pipeline Layers");
@@ -203,6 +206,7 @@ public:
                             ImGui::Text("[%d] %s", i, shader->get_name().c_str());
                             if(ImGui::Button("Del"))
                             {
+                                add_log_message("Shader", shader->get_name() + " removed");
                                 iter = m_shader_pipeline.erase(iter);
                                 i++;
                                 ImGui::PopID();
@@ -304,7 +308,12 @@ private:
 
     void add_log_message(const std::string& title, const std::string& message)
     {
-        std::string final_message = "[" + title + "] " + message;
+        auto t = std::chrono::system_clock::to_time_t(
+            std::chrono::system_clock::now()
+        );
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&t), "(%H:%M:%S)");
+        std::string final_message = ss.str() + " [" + title + "] " + message;
         m_log.insert(m_log.begin(), final_message);
         while(m_log.size() > MAX_LOG_MESSAGE) m_log.pop_back();
     }
