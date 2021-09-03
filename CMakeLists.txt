@@ -49,9 +49,12 @@ target_include_directories(process PRIVATE
     ${CMAKE_SOURCE_DIR}/external/glew-cmake/include
     ${CMAKE_SOURCE_DIR}/external/glfw/include
     ${CMAKE_SOURCE_DIR}/external/stb
+    ${CMAKE_SOURCE_DIR}/external/imgui
+    ${CMAKE_SOURCE_DIR}/external/imgui/backends
 )
 target_link_libraries(process PRIVATE
     libglew_static
     glfw
     OpenGL::GL
+    ImGui
 )
