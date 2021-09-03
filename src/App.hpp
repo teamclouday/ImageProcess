@@ -150,7 +150,7 @@ public:
                     shader->bind();
                     glBindImageTexture(0, imgInput, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
                     glBindImageTexture(1, imgOutput, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-                    glDispatchCompute((GLuint)imgW, (GLuint)imgH, 1);
+                    glDispatchCompute(imgW / 32 + 1, imgH / 32 + 1, 1);
                     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
                     shader->unbind();
                 }
