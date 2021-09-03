@@ -10,6 +10,5 @@ void main()
 {
     vec3 imgColor = texture(image, imgUV).rgb;
     color = vec4(imgColor, 1.0);
-    // color = vec4(1.0, 0.8, 0.4, 1.0);
 }
 )"
