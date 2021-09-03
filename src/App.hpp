@@ -83,57 +83,60 @@ public:
             m_image->render(*m_shader);
             m_shader->unbind();
 
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
-
-            ImGui::SetNextWindowSize({400.0f, 300.0f}, ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowPos({20.0f, 20.0f}, ImGuiCond_FirstUseEver);
-            ImGui::Begin("UI");
-            if(ImGui::BeginTabBar("Configs"))
+            if(displayUI)
             {
-                if(ImGui::BeginTabItem("App"))
-                {
-                    ImGui::Text("Window Size: %dx%d", winW, winH);
-                    ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
-                    ImGui::ColorEdit4("Background Color", winBackground);
-                    if(ImGui::Checkbox("OpenGL Debug", &debugMode)) updateGLDebug();
-                    ImGui::Text("Author: Teamclouday");
-                    ImGui::EndTabItem();
-                }
-                if(ImGui::BeginTabItem("Image Processing"))
-                {
-                    ImGui::Text("Image file: %s", m_image->exists() ? m_image->get_name().c_str() : "none");
-                    if(ImGui::Button("Select Image"))
-                    {
-                        if(!m_image->update(tools_select_file("Image", "*.*")))
-                            add_log_message("Image", m_image->get_error());
-                        else add_log_message("UI", "image file updated");
-                    }
-                    auto shaderName = m_shader->get_name();
-                    ImGui::Text("Shader file: %s", shaderName.length() > 0 ? shaderName.c_str() : "default");
-                    if(ImGui::Button("Select Shader"))
-                    {
-                        if(!m_shader->update(tools_select_file("Shader", "*.glsl")))
-                            add_log_message("Shader", m_shader->get_error());
-                        else add_log_message("UI", "shader file updated");
-                    }
-                    ImGui::EndTabItem();
-                }
-                if(ImGui::BeginTabItem("Log"))
-                {
-                    for(auto& message : m_log)
-                    {
-                        ImGui::Text(message.c_str());
-                    }
-                    ImGui::EndTabItem();
-                }
-                ImGui::EndTabBar();
-            }
-            ImGui::End();
+                ImGui_ImplOpenGL3_NewFrame();
+                ImGui_ImplGlfw_NewFrame();
+                ImGui::NewFrame();
 
-            ImGui::Render();
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                ImGui::SetNextWindowSize({400.0f, 300.0f}, ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowPos({20.0f, 20.0f}, ImGuiCond_FirstUseEver);
+                ImGui::Begin("UI");
+                if(ImGui::BeginTabBar("Configs"))
+                {
+                    if(ImGui::BeginTabItem("App"))
+                    {
+                        ImGui::Text("Window Size: %dx%d", winW, winH);
+                        ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
+                        ImGui::ColorEdit4("Background Color", winBackground);
+                        if(ImGui::Checkbox("OpenGL Debug", &debugMode)) updateGLDebug();
+                        ImGui::Text("Author: Teamclouday");
+                        ImGui::EndTabItem();
+                    }
+                    if(ImGui::BeginTabItem("Image Processing"))
+                    {
+                        ImGui::Text("Image file: %s", m_image->exists() ? m_image->get_name().c_str() : "none");
+                        if(ImGui::Button("Select Image"))
+                        {
+                            if(!m_image->update(tools_select_file("Image", "*.*")))
+                                add_log_message("Image", m_image->get_error());
+                            else add_log_message("UI", "image file updated");
+                        }
+                        auto shaderName = m_shader->get_name();
+                        ImGui::Text("Shader file: %s", shaderName.length() > 0 ? shaderName.c_str() : "default");
+                        if(ImGui::Button("Select Shader"))
+                        {
+                            if(!m_shader->update(tools_select_file("Shader", "*.glsl")))
+                                add_log_message("Shader", m_shader->get_error());
+                            else add_log_message("UI", "shader file updated");
+                        }
+                        ImGui::EndTabItem();
+                    }
+                    if(ImGui::BeginTabItem("Log"))
+                    {
+                        for(auto& message : m_log)
+                        {
+                            ImGui::Text(message.c_str());
+                        }
+                        ImGui::EndTabItem();
+                    }
+                    ImGui::EndTabBar();
+                }
+                ImGui::End();
+
+                ImGui::Render();
+                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            }
             glfwSwapBuffers(m_window);
         }
     }
@@ -171,6 +174,9 @@ private:
                         user->add_log_message("Shader", user->m_shader->get_error());
                     else user->add_log_message("UI", "shader file refreshed");
                     break;
+                case GLFW_KEY_F12:
+                    user->displayUI = !user->displayUI;
+                    break;
             }
         }
     }
@@ -188,6 +194,7 @@ public:
     int winW, winH;
     float winBackground[4] = {0.4f,0.4f,0.4f,1.0f};
     bool debugMode = false;
+    bool displayUI = true;
 
 private:
     GLFWwindow* m_window;
