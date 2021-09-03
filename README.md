@@ -1,5 +1,14 @@
 # ImageProcess
-A platform to test OpenGL fragment shader with image post-processing methods (single pass)
+A platform to try compute shader filter for image post-processing methods
+
+Now supporting multiple compute shader image filters as a pipeline  
+For example:  
+```
+[0] edge detection filter (compute)
+[1] sharpen filter (compute)
+[Final] output (vertex-fragment)
+```
+Orders can be modified
 
 ------
 
@@ -35,4 +44,4 @@ cmake --build . --config Release
 
 ### Demo
 
-<img src="assets/demo.png" width="600" alt="demo">
+<img src="assets/demo.png" width="800" alt="demo">
