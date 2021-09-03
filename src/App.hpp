@@ -142,17 +142,13 @@ public:
                 {
                     auto& shader = m_shader_pipeline[i];
                     GLuint imgInput = lastImgOutput;
-                    GLuint imgOutput = m_image->nextBuffer();
+                    GLuint imgOutput = m_image->nextBuffer(i == 0);
                     lastImgOutput = imgOutput;
                     shader->bind();
-                    shader->setUniform1i("imageIn", 0);
-                    shader->setUniform1i("imageOut", 1);
                     glBindImageTexture(0, imgInput, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
                     glBindImageTexture(1, imgOutput, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
                     glDispatchCompute((GLuint)imgW, (GLuint)imgH, 1);
                     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-                    glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
-                    glBindImageTexture(1, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
                     shader->unbind();
                 }
                 glUseProgram(m_render_shader);
@@ -190,7 +186,7 @@ public:
                     if(ImGui::BeginTabItem("Image Processing"))
                     {
                         ImGui::Text("Image file: %s", m_image->exists() ? m_image->get_name().c_str() : "none");
-                        if(ImGui::Button("Select Image"))
+                        if(ImGui::Button("Set"))
                         {
                             if(!m_image->update(tools_select_file("Image", "*.*")))
                                 add_log_message("Image", m_image->get_error());
@@ -202,27 +198,31 @@ public:
                         int i = 0;
                         while(iter != m_shader_pipeline.end())
                         {
+                            ImGui::PushID(i);
                             auto& shader = *iter;
                             ImGui::Text("[%d] %s", i, shader->get_name().c_str());
                             if(ImGui::Button("Del"))
                             {
                                 iter = m_shader_pipeline.erase(iter);
+                                i++;
+                                ImGui::PopID();
                                 continue;
                             }
-                            ImGui::SameLine();
                             if(i > 0)
                             {
-                                if(ImGui::Button("↑"))
-                                    std::iter_swap(iter, iter-1);
                                 ImGui::SameLine();
+                                if(ImGui::Button("up"))
+                                    std::iter_swap(iter, iter-1);
                             }
                             if(i < (int)m_shader_pipeline.size() - 1)
                             {
-                                if(ImGui::Button("↓"))
+                                ImGui::SameLine();
+                                if(ImGui::Button("down"))
                                     std::iter_swap(iter, iter+1);
                             }
                             i++;
                             iter++;
+                            ImGui::PopID();
                         }
                         if(ImGui::Button("Add"))
                         {
@@ -237,7 +237,7 @@ public:
                                 add_log_message("UI", newshader->get_name() + " added");
                             }
                         }
-                        ImGui::Text("Final Output");
+                        ImGui::Text("[Final] Output");
                         ImGui::EndTabItem();
                     }
                     if(ImGui::BeginTabItem("Log"))

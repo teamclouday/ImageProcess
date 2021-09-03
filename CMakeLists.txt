@@ -11,6 +11,14 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -O2 -fpermissive")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
+endif()
+
+add_definitions(-DUNICODE)
+add_definitions(-D_UNICODE)
+add_definitions(-DGLEW_STATIC)
+
 find_package(OpenGL REQUIRED)
 option(glew-cmake_BUILD_SHARED "Build the shared glew library" OFF)
 add_subdirectory(${CMAKE_SOURCE_DIR}/external/glew-cmake)

@@ -1,15 +1,15 @@
 #version 450 core
 
-layout (location = 0) in vec2 imgUV;
-layout (location = 0) out vec4 color;
+layout (local_size_x=1, local_size_y=1, local_size_z=1) in;
 
-uniform sampler2D image;
+layout (rgba32f, binding=0) readonly  uniform image2D imageIn;
+layout (rgba32f, binding=1) writeonly uniform image2D imageOut;
 
 void main()
 {
-    vec3 imgColor = texture(image, imgUV).rgb;
+    ivec2 baseUV = ivec2(gl_GlobalInvocationID.xy);
+    vec3 imgColor = imageLoad(imageIn, baseUV).rgb;
     
-    vec2 c = 1.0 / textureSize(image, 0);
     const mat3 kernelX = mat3(
         -1.0, 0.0, 1.0,
         -2.0, 0.0, 2.0,
@@ -26,7 +26,7 @@ void main()
     {
         for(int j = 0; j < 3; j++)
         {
-            vec3 pixel = texture(image, imgUV + c * vec2(i - 1, j - 1)).rgb;
+            vec3 pixel = imageLoad(imageIn, baseUV + ivec2(i - 1, j - 1)).rgb;
             img[i][j] = length(pixel);
         }
     }
@@ -43,6 +43,5 @@ void main()
     mag = smoothstep(0.5, 1.0, mag);
     imgColor = mix(imgColor, vec3(1.0), mag);
 
-    color = vec4(vec3(mag), 1.0);
-    // color = vec4(imgColor, 1.0);
+    imageStore(imageOut, baseUV, vec4(vec3(mag), 1.0));
 }

@@ -9,5 +9,7 @@ void main()
 {
     ivec2 baseUV = ivec2(gl_GlobalInvocationID.xy);
     vec3 imgColor = imageLoad(imageIn, baseUV).rgb;
-    imageStore(imageOut, baseUV, vec4(imgColor, 1.0));
+    const vec3 multiplier = vec3(0.3, 0.59, 0.11);
+    float gray = clamp(dot(imgColor, multiplier), 0.0, 1.0);
+    imageStore(imageOut, baseUV, vec4(vec3(gray), 1.0));
 }
