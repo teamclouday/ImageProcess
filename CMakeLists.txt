@@ -58,3 +58,8 @@ target_link_libraries(process PRIVATE
     OpenGL::GL
     ImGui
 )
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_link_libraries(process PRIVATE
+        comdlg32
+    )
+endif()
