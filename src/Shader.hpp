@@ -45,6 +45,9 @@ public:
         ss << file.rdbuf();
         std::string shaderSourceStr = ss.str();
         const char* shaderSource = shaderSourceStr.c_str();
+        file.close();
+        size_t newHash = hashing(shaderSourceStr);
+        if(newHash == sourceHash) return true;
         GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
         glShaderSource(shader, 1, &shaderSource, nullptr);
         glCompileShader(shader);
@@ -78,6 +81,7 @@ public:
         if(m_initialized) glDeleteProgram(m_program);
         m_program = newprogram;
         glDeleteShader(shader);
+        sourceHash = newHash;
         processSource(shaderSourceStr);
         return true;
     }
@@ -127,12 +131,14 @@ private:
     std::string error_message = "";
     std::string m_filepath = "";
     std::string m_name = "";
+    std::hash<std::string> hashing;
+    size_t sourceHash = 0;
 
     void processSource(const std::string& source)
     {
         controls.resize(0);
-        auto linestart = 0;
-        auto linesplit = source.find("\n");
+        size_t linestart = 0;
+        size_t linesplit = source.find("\n");
         while(linesplit != std::string::npos)
         {
             auto line = source.substr(linestart, linesplit - linestart);
