@@ -53,6 +53,14 @@ layout (local_size_x=32, local_size_y=32, local_size_z=1) in;
 layout (rgba32f, binding=0) readonly  uniform image2D imageIn;
 layout (rgba32f, binding=1) writeonly uniform image2D imageOut;
 
+// support uniform (int, float) controls
+// support initial values
+// control via ImGui
+uniform int control1;
+uniform float control2;
+uniform int control3 = 12;
+uniform float control4 = 5.2;
+
 void main()
 {
     ivec2 baseUV = ivec2(gl_GlobalInvocationID.xy);
