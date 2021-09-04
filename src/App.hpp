@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <cmath>
 #include <ctime>
 #include <chrono>
 #include <iomanip>
@@ -155,7 +156,9 @@ public:
                     }
                     glBindImageTexture(0, imgInput, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
                     glBindImageTexture(1, imgOutput, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-                    glDispatchCompute(imgW / 32 + 1, imgH / 32 + 1, 1);
+                    glDispatchCompute(
+                        static_cast<GLuint>(std::ceil(imgW / 32.0f)),
+                        static_cast<GLuint>(std::ceil(imgH / 32.0f)), 1);
                     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
                     shader->unbind();
                 }
