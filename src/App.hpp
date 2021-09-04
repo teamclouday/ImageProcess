@@ -148,6 +148,11 @@ public:
                     GLuint imgOutput = m_image->nextBuffer(i == 0);
                     lastImgOutput = imgOutput;
                     shader->bind();
+                    for(auto& control : shader->controls)
+                    {
+                        if(control.isInt) shader->setUniform1i(control.name, control.val.val_int);
+                        else shader->setUniform1f(control.name, control.val.val_float);
+                    }
                     glBindImageTexture(0, imgInput, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
                     glBindImageTexture(1, imgOutput, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
                     glDispatchCompute(imgW / 32 + 1, imgH / 32 + 1, 1);
@@ -204,9 +209,21 @@ public:
                             ImGui::PushID(i);
                             auto& shader = *iter;
                             ImGui::Text("[%d] %s", i, shader->get_name().c_str());
+                            if(shader->controls.size() && ImGui::TreeNode("Controls"))
+                            {
+                                for(int i = 0; i < (int)shader->controls.size(); i++)
+                                {
+                                    ImGui::PushID(i);
+                                    auto& control = shader->controls[i];
+                                    if(control.isInt) ImGui::DragInt(control.name.c_str(), &control.val.val_int);
+                                    else ImGui::DragFloat(control.name.c_str(), &control.val.val_float, 0.01f);
+                                    ImGui::PopID();
+                                }
+                                ImGui::TreePop();
+                            }
                             if(ImGui::Button("Del"))
                             {
-                                add_log_message("Shader", shader->get_name() + " removed");
+                                add_log_message("UI", shader->get_name() + " removed");
                                 iter = m_shader_pipeline.erase(iter);
                                 i++;
                                 ImGui::PopID();

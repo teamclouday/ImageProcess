@@ -7,6 +7,17 @@
 #include <string>
 #include <vector>
 
+struct ShaderControl
+{
+    std::string name;
+    bool isInt;
+    union
+    {
+        int val_int;
+        float val_float;
+    } val;
+};
+
 class Shader
 {
 public:
@@ -67,6 +78,7 @@ public:
         if(m_initialized) glDeleteProgram(m_program);
         m_program = newprogram;
         glDeleteShader(shader);
+        processSource(shaderSourceStr);
         return true;
     }
 
@@ -107,10 +119,87 @@ public:
         glUniform1f(glGetUniformLocation(m_program, name.c_str()), val);
     }
 
+    std::vector<ShaderControl> controls;
+
 private:
     GLuint m_program;
     bool m_initialized = false;
     std::string error_message = "";
     std::string m_filepath = "";
     std::string m_name = "";
+
+    void processSource(const std::string& source)
+    {
+        controls.resize(0);
+        auto linestart = 0;
+        auto linesplit = source.find("\n");
+        while(linesplit != std::string::npos)
+        {
+            auto line = source.substr(linestart, linesplit - linestart);
+            if(line.find("uniform") == 0)
+            {
+                // found uniform
+                line = line.substr(7);
+                std::string type;
+                std::string name;
+                std::string value;
+                auto charIter = line.cbegin();
+                while(charIter != line.cend())
+                {
+                    if(*charIter == ' ') charIter++;
+                    else break;
+                }
+                while(charIter != line.cend())
+                {
+                    if(*charIter == ' ') break;
+                    type += *charIter;
+                    charIter++;
+                }
+                while(charIter != line.cend())
+                {
+                    if(*charIter == ' ') charIter++;
+                    else break;
+                }
+                while(charIter != line.cend())
+                {
+                    if(*charIter == ';' || *charIter == ' ') break;
+                    name += *charIter;
+                    charIter++;
+                }
+                while(charIter != line.cend())
+                {
+                    if(*charIter == ' ' || *charIter == '=') charIter++;
+                    else break;
+                }
+                while(charIter != line.cend())
+                {
+                    if(*charIter == ';' || *charIter == ' ') break;
+                    value += *charIter;
+                    charIter++;
+                }
+                if(name.length() > 0)
+                {
+                    if(!type.compare("int"))
+                    {
+                        ShaderControl control;
+                        control.name = name;
+                        control.isInt = true;
+                        control.val.val_int = value.length() > 0 ? std::stoi(value) : 0;
+                        controls.push_back(control);
+                    }
+                    else if(!type.compare("float"))
+                    {
+                        ShaderControl control;
+                        control.name = name;
+                        control.isInt = false;
+                        control.val.val_float = value.length() > 0 ? std::stof(value) : 0.0f;
+                        controls.push_back(control);
+                    }
+                }
+            }
+            linestart = linesplit + 1;
+            linesplit = source.find("\n", linestart);
+        }
+
+    }
 };

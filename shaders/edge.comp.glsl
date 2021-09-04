@@ -5,10 +5,13 @@ layout (local_size_x=32, local_size_y=32, local_size_z=1) in;
 layout (rgba32f, binding=0) readonly  uniform image2D imageIn;
 layout (rgba32f, binding=1) writeonly uniform image2D imageOut;
 
+uniform float edgeThresholdBegin = 0.5;
+uniform float edgeThresholdEnd = 1.0;
+
 void main()
 {
     ivec2 baseUV = ivec2(gl_GlobalInvocationID.xy);
-    baseUV = clamp(baseUV, ivec2(0,0), imageSize(imageIn));
+    baseUV = clamp(baseUV, ivec2(0), imageSize(imageIn));
     vec3 imgColor = imageLoad(imageIn, baseUV).rgb;
     
     const mat3 kernelX = mat3(
@@ -41,7 +44,7 @@ void main()
     }
     // compute gradient magnitude
     float mag = sqrt(gX * gX + gY * gY);
-    mag = smoothstep(0.5, 1.0, mag);
+    mag = smoothstep(edgeThresholdBegin, edgeThresholdEnd, mag);
     imgColor = mix(imgColor, vec3(1.0), mag);
 
     imageStore(imageOut, baseUV, vec4(vec3(mag), 1.0));

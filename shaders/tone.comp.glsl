@@ -62,20 +62,24 @@ vec3 reinhard_jodie(vec3 c)
     return mix(c / (1.0 + l_in), r, r);
 }
 
+uniform float c_reinhard_ext = 0.4;
+uniform float c_luminance = 0.3;
+uniform float c_reinhard_ext_luminance = 0.5;
+
 // modify tone
 void main()
 {
     ivec2 baseUV = ivec2(gl_GlobalInvocationID.xy);
-    baseUV = clamp(baseUV, ivec2(0,0), imageSize(imageIn));
+    baseUV = clamp(baseUV, ivec2(0), imageSize(imageIn));
     vec3 imgColor = imageLoad(imageIn, baseUV).rgb;
     imgColor = srgb2linear(imgColor);
 
     // imgColor = clamp(imgColor, 0.0, 1.0);
     // imgColor = reinhard(imgColor);
-    // imgColor = reinhard_ext(imgColor, 0.4);
+    // imgColor = reinhard_ext(imgColor, c_reinhard_ext);
     // imgColor = vec3(L(imgColor));
-    // imgColor = luminance(imgColor, 0.3);
-    // imgColor = reinhard_ext_luminance(imgColor, 0.5);
+    // imgColor = luminance(imgColor, c_luminance);
+    // imgColor = reinhard_ext_luminance(imgColor, c_reinhard_ext_luminance);
     imgColor = reinhard_jodie(imgColor);
 
     imgColor = linear2srgb(imgColor);
