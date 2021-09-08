@@ -62,9 +62,65 @@ vec3 reinhard_jodie(vec3 c)
     return mix(c / (1.0 + l_in), r, r);
 }
 
+vec3 uncharted2_tonemap_partial(vec3 x)
+{
+    const float A = 0.15;
+    const float B = 0.50;
+    const float C = 0.10;
+    const float D = 0.20;
+    const float E = 0.02;
+    const float F = 0.30;
+    return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
+}
+
+vec3 uncharted2_filmic(vec3 c)
+{
+    const float exposure_bias = 2.0;
+    vec3 curr = uncharted2_tonemap_partial(c * exposure_bias);
+    const vec3 W = vec3(11.2);
+    vec3 white_scale = vec3(1.0) / uncharted2_tonemap_partial(W);
+    return curr * white_scale;
+}
+
+vec3 rtt_and_odt_fit(vec3 v)
+{
+    vec3 a = v * (v + 0.0245786) - 0.000090537;
+    vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
+    return a / b;
+}
+
+vec3 aces_fitted(vec3 c)
+{
+    const mat3 aces_input_matrix = mat3(
+        vec3(0.59719, 0.07600, 0.02840),
+        vec3(0.35458, 0.90834, 0.13383),
+        vec3(0.04823, 0.01566, 0.83777)
+    );
+    const mat3 aces_output_matrix = mat3(
+        vec3( 1.60475, -0.10208, -0.00327),
+        vec3(-0.53108,  1.10813, -0.07276),
+        vec3(-0.07367, -0.00605,  1.07602)
+    );
+    c = aces_input_matrix * c;
+    c = rtt_and_odt_fit(c);
+    return aces_output_matrix * c;
+}
+
+vec3 aces_approx(vec3 v)
+{
+    v *= 0.6;
+    float a = 2.51;
+    float b = 0.03;
+    float c = 2.43;
+    float d = 0.59;
+    float e = 0.14;
+    return clamp((v*(a*v+b))/(v*(c*v+d)+e), 0.0, 1.0);
+}
+
+uniform int mode = 0;
 uniform float c_reinhard_ext = 0.4;
 uniform float c_luminance = 0.3;
-uniform float c_reinhard_ext_luminance = 0.5;
+uniform float c_reinhard_ext_luminance = 1.5;
 
 // modify tone
 void main()
@@ -74,13 +130,38 @@ void main()
     vec3 imgColor = imageLoad(imageIn, baseUV).rgb;
     imgColor = srgb2linear(imgColor);
 
-    // imgColor = clamp(imgColor, 0.0, 1.0);
-    // imgColor = reinhard(imgColor);
-    // imgColor = reinhard_ext(imgColor, c_reinhard_ext);
-    // imgColor = vec3(L(imgColor));
-    // imgColor = luminance(imgColor, c_luminance);
-    // imgColor = reinhard_ext_luminance(imgColor, c_reinhard_ext_luminance);
-    imgColor = reinhard_jodie(imgColor);
+    if(mode == 1)
+    {
+        imgColor = reinhard(imgColor);
+    }
+    else if(mode == 2)
+    {
+        imgColor = reinhard_ext(imgColor, c_reinhard_ext);
+    }
+    else if(mode == 3)
+    {
+        imgColor = luminance(imgColor, c_luminance);
+    }
+    else if(mode == 4)
+    {
+        imgColor = reinhard_ext_luminance(imgColor, c_reinhard_ext_luminance);
+    }
+    else if(mode == 5)
+    {
+        imgColor = reinhard_jodie(imgColor);
+    }
+    else if(mode == 6)
+    {
+        imgColor = uncharted2_filmic(imgColor);
+    }
+    else if(mode == 7)
+    {
+        imgColor = aces_fitted(imgColor);
+    }
+    else if(mode == 8)
+    {
+        imgColor = aces_approx(imgColor);
+    }
 
     imgColor = linear2srgb(imgColor);
     imageStore(imageOut, baseUV, vec4(imgColor, 1.0));
